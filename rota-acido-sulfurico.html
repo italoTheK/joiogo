@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Planeta Química — Rota do Ácido Sulfúrico</title>
+<style>
+  :root{
+    --bg-top:#101c40;
+    --bg-bottom:#05060f;
+    --panel:rgba(10,22,42,0.78);
+    --border:rgba(78,205,196,0.35);
+    --accent:#4ecdc4;
+    --accent-dim:#2f7d78;
+    --danger:#ff5252;
+    --ok:#54e08a;
+    --text:#e8f6f5;
+    --text-dim:#7fa8a6;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; min-height:100%;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg-top) 0%, var(--bg-bottom) 60%, #000 100%);
+    font-family: var(--mono);
+    color: var(--text);
+  }
+  .wrap{ max-width:720px; margin:0 auto; padding:16px 14px 40px; }
+  .titlebar{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:16px;
+    flex-wrap:wrap; gap:6px;
+  }
+  .titlebar h1{
+    font-size:15px; letter-spacing:3px; text-transform:uppercase; margin:0;
+    color:var(--accent); font-weight:700;
+  }
+  .titlebar .sub{ font-size:11px; color:var(--text-dim); letter-spacing:1px; }
+
+  .trail{ display:flex; gap:6px; margin-bottom:16px; }
+  .trail .step{
+    flex:1; text-align:center; font-size:10px; letter-spacing:1px;
+    padding:8px 4px; border:1px solid var(--border); border-radius:3px;
+    color:var(--text-dim); background:rgba(78,205,196,0.04);
+  }
+  .trail .step.active{ color:var(--accent); border-color:var(--accent); background:rgba(78,205,196,0.1); }
+  .trail .step.done{ color:var(--ok); border-color:var(--ok); }
+
+  .card{
+    border:1px solid var(--border); background:var(--panel); border-radius:5px;
+    padding:16px; margin-bottom:14px;
+  }
+  .card h2{ font-size:13px; letter-spacing:1px; color:var(--accent); margin:0 0 4px; text-transform:uppercase; }
+  .card .desc{ font-size:11.5px; color:var(--text-dim); line-height:1.6; margin-bottom:14px; }
+
+  .equation{
+    display:flex; align-items:center; justify-content:center; flex-wrap:wrap;
+    gap:6px; padding:10px 0 18px;
+  }
+  .species{ display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .coef-stepper{ display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .coef-stepper button{
+    width:26px; height:20px; background:transparent; border:1px solid var(--accent-dim);
+    color:var(--accent); font-family:var(--mono); cursor:pointer; border-radius:2px; font-size:11px;
+  }
+  .coef-stepper button:hover{ background:var(--accent); color:#04201d; }
+  .coef-val{ font-size:20px; color:var(--text); min-width:22px; text-align:center; }
+  .mol-icon{ width:64px; height:64px; }
+  .formula{ font-size:12px; color:var(--text-dim); }
+  .plus, .arrow{ font-size:18px; color:var(--text-dim); padding:0 4px; align-self:center; }
+  .arrow{ color:var(--accent); font-weight:bold; }
+
+  .balance-panel{ border-top:1px dashed var(--border); padding-top:12px; }
+  .balance-panel table{ width:100%; border-collapse:collapse; font-size:12px; }
+  .balance-panel th{ text-align:left; color:var(--text-dim); font-weight:normal; font-size:10px; letter-spacing:1px; padding-bottom:6px; }
+  .balance-panel td{ padding:5px 4px; }
+  .bar{ height:8px; border-radius:2px; background:var(--accent-dim); }
+  .bar-wrap{ background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
+  .row-ok td:first-child{ color:var(--ok); }
+  .row-bad td:first-child{ color:var(--danger); }
+
+  .actions{ display:flex; gap:10px; align-items:center; margin-top:14px; flex-wrap:wrap; }
+  button.main-btn{
+    font-family:var(--mono); background:transparent; border:1px solid var(--accent);
+    color:var(--accent); padding:9px 18px; letter-spacing:1.5px; text-transform:uppercase;
+    font-size:11px; cursor:pointer; border-radius:2px; transition:.15s;
+  }
+  button.main-btn:hover{ background:var(--accent); color:#04201d; }
+  button.main-btn.next{ border-color:var(--ok); color:var(--ok); }
+  button.main-btn.next:hover{ background:var(--ok); color:#04200f; }
+
+  #feedback{ font-size:12px; line-height:1.6; min-height:18px; }
+  #feedback.ok{ color:var(--ok); }
+  #feedback.bad{ color:var(--danger); }
+  #hint{ font-size:11px; color:var(--text-dim); margin-top:6px; font-style:italic; }
+
+  #finalScreen{ display:none; }
+  #finalScreen .route-eq{ font-size:13px; margin:6px 0; color:var(--text); }
+  #finalScreen .global-eq{
+    margin-top:14px; padding:12px; border:1px solid var(--accent); border-radius:4px;
+    font-size:14px; text-align:center; background:rgba(78,205,196,0.06);
+  }
+  .footer-note{ text-align:center; color:var(--text-dim); font-size:10px; letter-spacing:1px; margin-top:18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="titlebar">
+    <h1>Planeta Química</h1>
+    <div class="sub">Simulador · Rota do H₂SO₄</div>
+  </div>
+
+  <div class="trail" id="trail"></div>
+
+  <div id="levelScreen" class="card">
+    <h2 id="lvlTitle"></h2>
+    <div class="desc" id="lvlDesc"></div>
+    <div class="equation" id="equationBox"></div>
+    <div class="balance-panel">
+      <table>
+        <thead><tr><th>Elemento</th><th>Reagentes</th><th></th><th>Produtos</th></tr></thead>
+        <tbody id="balanceBody"></tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <button class="main-btn" id="checkBtn">Verificar Equação</button>
+      <button class="main-btn next" id="nextBtn" style="display:none;">Próxima Etapa →</button>
+    </div>
+    <div id="feedback"></div>
+    <div id="hint"></div>
+  </div>
+
+  <div id="finalScreen" class="card">
+    <h2>Rota Completa — Processo de Contato</h2>
+    <div class="desc">Você balanceou as três etapas industriais de produção do ácido sulfúrico:</div>
+    <div class="route-eq" id="routeList"></div>
+    <div class="global-eq" id="globalEq"></div>
+    <div class="actions">
+      <button class="main-btn" id="restartBtn">Reiniciar Simulação</button>
+    </div>
+  </div>
+
+  <div class="footer-note">coeficientes e proporções simplificadas para fins didáticos</div>
+</div>
+
+<script>
+(function(){
+  const ATOM = { H:'#ffffff', O:'#ff5252', S:'#ffd43b' };
+
+  const SPECIES = {
+    S:    { label:'S',     atoms:{S:1}, shape:[{el:'S',x:0,y:0,r:11}], bonds:[] },
+    O2:   { label:'O₂',    atoms:{O:2}, shape:[{el:'O',x:-11,y:0,r:9},{el:'O',x:11,y:0,r:9}], bonds:[[0,1]] },
+    SO2:  { label:'SO₂',   atoms:{S:1,O:2}, shape:[{el:'S',x:0,y:5,r:9},{el:'O',x:-14,y:-9,r:8},{el:'O',x:14,y:-9,r:8}], bonds:[[0,1],[0,2]] },
+    SO3:  { label:'SO₃',   atoms:{S:1,O:3}, shape:[{el:'S',x:0,y:0,r:9},{el:'O',x:0,y:-17,r:8},{el:'O',x:15,y:9,r:8},{el:'O',x:-15,y:9,r:8}], bonds:[[0,1],[0,2],[0,3]] },
+    H2O:  { label:'H₂O',   atoms:{H:2,O:1}, shape:[{el:'O',x:0,y:0,r:9},{el:'H',x:-13,y:10,r:6},{el:'H',x:13,y:10,r:6}], bonds:[[0,1],[0,2]] },
+    H2SO4:{ label:'H₂SO₄', atoms:{H:2,S:1,O:4}, shape:[
+              {el:'S',x:0,y:0,r:9},{el:'O',x:0,y:-17,r:7},{el:'O',x:0,y:17,r:7},
+              {el:'O',x:-17,y:0,r:7},{el:'O',x:17,y:0,r:7},
+              {el:'H',x:-8,y:-27,r:5},{el:'H',x:8,y:27,r:5}
+            ], bonds:[[0,1],[0,2],[0,3],[0,4],[1,5],[2,6]] }
+  };
+
+  const LEVELS = [
+    { title:'Etapa 1 — Oxidação do Enxofre',
+      desc:'O enxofre reage com o oxigênio do ar, formando dióxido de enxofre.',
+      reactants:['S','O2'], products:['SO2'],
+      hint:'Confira o oxigênio: O₂ já entrega os 2 átomos que o SO₂ precisa. Coeficiente 1 em tudo fecha a conta.' },
+    { title:'Etapa 2 — Formação do Trióxido',
+      desc:'Com um catalisador (V₂O₅), o SO₂ é oxidado a SO₃.',
+      reactants:['SO2','O2'], products:['SO3'],
+      hint:'O oxigênio da esquerda (SO₂ + O₂) precisa somar o mesmo total que o SO₃ da direita. Tente dobrar o SO₂ e o SO₃.' },
+    { title:'Etapa 3 — Formação do Ácido Sulfúrico',
+      desc:'O trióxido de enxofre reage com água, formando o ácido sulfúrico.',
+      reactants:['SO3'], products:['H2SO4'],
+      hint:'Essa é direta: 1 para cada substância já fecha H, S e O.', extraReactant:'H2O' }
+  ];
+  // fix level 3 reactants properly
+  LEVELS[2].reactants = ['SO3','H2O'];
+
+  let currentLevel = 0;
+  let coefs = [];
+  let wrongAttempts = 0;
+  const completedEquations = [];
+
+  function gcd(a,b){ return b===0 ? a : gcd(b, a%b); }
+  function gcdArray(arr){ return arr.reduce((a,b)=>gcd(a,b)); }
+
+  function buildIcon(key){
+    const def = SPECIES[key];
+    let svg = '<svg viewBox="-45 -45 90 90" xmlns="http://www.w3.org/2000/svg">';
+    for(const [i,j] of def.bonds){
+      const a = def.shape[i], b = def.shape[j];
+      svg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="rgba(220,230,235,0.55)" stroke-width="2"/>`;
+    }
+    for(const a of def.shape){
+      svg += `<circle cx="${a.x}" cy="${a.y}" r="${a.r}" fill="${ATOM[a.el]}"/>`;
+    }
+    svg += '</svg>';
+    return svg;
+  }
+
+  function renderTrail(){
+    const trail = document.getElementById('trail');
+    trail.innerHTML = '';
+    LEVELS.forEach((lvl, i) => {
+      const d = document.createElement('div');
+      d.className = 'step' + (i === currentLevel ? ' active' : '') + (i < currentLevel ? ' done' : '');
+      d.textContent = 'ESTÁGIO ' + (i+1) + (i < currentLevel ? ' ✓' : '');
+      trail.appendChild(d);
+    });
+  }
+
+  function renderLevel(){
+    const lvl = LEVELS[currentLevel];
+    document.getElementById('lvlTitle').textContent = lvl.title;
+    document.getElementById('lvlDesc').textContent = lvl.desc;
+    document.getElementById('feedback').textContent = '';
+    document.getElementById('feedback').className = '';
+    document.getElementById('hint').textContent = '';
+    document.getElementById('nextBtn').style.display = 'none';
+    wrongAttempts = 0;
+
+    coefs = { reactants: lvl.reactants.map(()=>1), products: lvl.products.map(()=>1) };
+
+    const box = document.getElementById('equationBox');
+    box.innerHTML = '';
+
+    function addSpeciesGroup(list, coefArr, groupName){
+      list.forEach((key, idx) => {
+        if(idx > 0){
+          const plus = document.createElement('div');
+          plus.className = 'plus'; plus.textContent = '+';
+          box.appendChild(plus);
+        }
+        const wrap = document.createElement('div');
+        wrap.className = 'species';
+        wrap.innerHTML = `
+          <div class="coef-stepper">
+            <button class="inc" data-group="${groupName}" data-idx="${idx}">▲</button>
+            <div class="coef-val" id="coef-${groupName}-${idx}">${coefArr[idx]}</div>
+            <button class="dec" data-group="${groupName}" data-idx="${idx}">▼</button>
+          </div>
+          <div class="mol-icon">${buildIcon(key)}</div>
+          <div class="formula">${SPECIES[key].label}</div>
+        `;
+        box.appendChild(wrap);
+      });
+    }
+
+    addSpeciesGroup(lvl.reactants, coefs.reactants, 'reactants');
+    const arrow = document.createElement('div');
+    arrow.className = 'arrow'; arrow.textContent = '→';
+    box.appendChild(arrow);
+    addSpeciesGroup(lvl.products, coefs.products, 'products');
+
+    box.querySelectorAll('.inc, .dec').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const group = btn.dataset.group;
+        const idx = +btn.dataset.idx;
+        const arr = coefs[group];
+        const delta = btn.classList.contains('inc') ? 1 : -1;
+        arr[idx] = Math.max(1, Math.min(8, arr[idx] + delta));
+        document.getElementById(`coef-${group}-${idx}`).textContent = arr[idx];
+        updateBalancePanel();
+      });
+    });
+
+    updateBalancePanel();
+    renderTrail();
+  }
+
+  function computeTotals(){
+    const lvl = LEVELS[currentLevel];
+    const elements = new Set();
+    lvl.reactants.forEach(k => Object.keys(SPECIES[k].atoms).forEach(e=>elements.add(e)));
+    lvl.products.forEach(k => Object.keys(SPECIES[k].atoms).forEach(e=>elements.add(e)));
+
+    const left = {}, right = {};
+    elements.forEach(e => { left[e]=0; right[e]=0; });
+
+    lvl.reactants.forEach((k, i) => {
+      const atoms = SPECIES[k].atoms;
+      Object.keys(atoms).forEach(e => { left[e] += atoms[e] * coefs.reactants[i]; });
+    });
+    lvl.products.forEach((k, i) => {
+      const atoms = SPECIES[k].atoms;
+      Object.keys(atoms).forEach(e => { right[e] += atoms[e] * coefs.products[i]; });
+    });
+
+    return { elements: [...elements], left, right };
+  }
+
+  function updateBalancePanel(){
+    const { elements, left, right } = computeTotals();
+    const body = document.getElementById('balanceBody');
+    body.innerHTML = '';
+    const maxVal = Math.max(1, ...elements.map(e => Math.max(left[e], right[e])));
+
+    let allBalanced = true;
+    elements.forEach(e => {
+      const ok = left[e] === right[e];
+      if(!ok) allBalanced = false;
+      const tr = document.createElement('tr');
+      tr.className = ok ? 'row-ok' : 'row-bad';
+      tr.innerHTML = `
+        <td>${e} ${ok ? '✓' : '✕'}</td>
+        <td>
+          <div class="bar-wrap"><div class="bar" style="width:${(left[e]/maxVal*100)}%; background:${ok?'var(--ok)':'var(--danger)'}"></div></div>
+          ${left[e]}
+        </td>
+        <td style="text-align:center; color:var(--text-dim);">vs</td>
+        <td>
+          <div class="bar-wrap"><div class="bar" style="width:${(right[e]/maxVal*100)}%; background:${ok?'var(--ok)':'var(--danger)'}"></div></div>
+          ${right[e]}
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+
+    return allBalanced;
+  }
+
+  function checkEquation(){
+    const balanced = updateBalancePanel();
+    const feedback = document.getElementById('feedback');
+    const allCoefs = [...coefs.reactants, ...coefs.products];
+    const simplified = gcdArray(allCoefs) === 1;
+
+    if(balanced && simplified){
+      feedback.className = 'ok';
+      feedback.textContent = '✓ Balanceada! Proporção correta.';
+      document.getElementById('hint').textContent = '';
+      document.getElementById('nextBtn').style.display = 'inline-block';
+      document.getElementById('checkBtn').style.display = 'none';
+      const lvl = LEVELS[currentLevel];
+      const eqText = lvl.reactants.map((k,i)=> (coefs.reactants[i]>1?coefs.reactants[i]:'') + SPECIES[k].label).join(' + ')
+                   + ' → '
+                   + lvl.products.map((k,i)=> (coefs.products[i]>1?coefs.products[i]:'') + SPECIES[k].label).join(' + ');
+      completedEquations[currentLevel] = eqText;
+    } else if(balanced && !simplified){
+      feedback.className = 'bad';
+      const g = gcdArray(allCoefs);
+      feedback.textContent = `Os átomos batem, mas dá pra simplificar — divida todos os coeficientes por ${g}.`;
+      wrongAttempts++;
+    } else {
+      feedback.className = 'bad';
+      feedback.textContent = 'Ainda não bate. Olha o quadro de elementos abaixo (✕ = desbalanceado).';
+      wrongAttempts++;
+    }
+
+    if(wrongAttempts >= 3){
+      document.getElementById('hint').textContent = '💡 ' + LEVELS[currentLevel].hint;
+    }
+  }
+
+  function nextLevel(){
+    currentLevel++;
+    document.getElementById('checkBtn').style.display = 'inline-block';
+    if(currentLevel >= LEVELS.length){
+      showFinal();
+    } else {
+      renderLevel();
+    }
+  }
+
+  function showFinal(){
+    document.getElementById('levelScreen').style.display = 'none';
+    document.getElementById('finalScreen').style.display = 'block';
+    document.getElementById('routeList').innerHTML = completedEquations.map(e => `<div>${e}</div>`).join('');
+    document.getElementById('globalEq').innerHTML =
+      'Somando as três etapas (SO₂ e SO₃ se cancelam), o balanço de massa global da rota é:<br><br>' +
+      '<strong>2 S + 3 O₂ + 2 H₂O → 2 H₂SO₄</strong>';
+    renderTrail();
+    document.querySelectorAll('.trail .step').forEach(s => s.classList.add('done'));
+  }
+
+  function restart(){
+    currentLevel = 0;
+    completedEquations.length = 0;
+    document.getElementById('finalScreen').style.display = 'none';
+    document.getElementById('levelScreen').style.display = 'block';
+    document.getElementById('checkBtn').style.display = 'inline-block';
+    renderLevel();
+  }
+
+  document.getElementById('checkBtn').addEventListener('click', checkEquation);
+  document.getElementById('nextBtn').addEventListener('click', nextLevel);
+  document.getElementById('restartBtn').addEventListener('click', restart);
+
+  renderLevel();
+})();
+</script>
+</body>
+</html>
